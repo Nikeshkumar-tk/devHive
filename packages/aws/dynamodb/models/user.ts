@@ -1,16 +1,23 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { putDdbItem, queryDdbItems } from '../client/client';
+import { getDdbItem, putDdbItem, queryDdbItems } from '../client/client';
 import { BaseModel } from './baseModel';
+import { NotFoundError } from '@dev-hive/error';
 
 export class UserModel extends BaseModel {
     public static email: string;
     public static authType: UserAuthType;
+    public static password?: string;
+    public static override sensitiveFields: string[] = ['password', 'PK', 'SK'];
     static getPK() {
         return `DH#USERS`;
     }
 
-    static getSK() {
-        return `DH#USER_EMAIL#${this.email}#ID#${this.id}`;
+    static getEmailSK() {
+        return `DH#USER_EMAIL#${this.email}`;
+    }
+
+    static getUserIdSk() {
+        return `DH#USER_ID#${this.id}`;
     }
 
     static skBeginsWithEmail() {
@@ -26,10 +33,17 @@ export class UserModel extends BaseModel {
             deleted: this.deleted,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
+            deletedAt: this.deletedAt,
+            authType: this.authType,
+            password: this.password,
         };
     }
 
-    static async createUser(input: { email: string; logger: Logger; authType: UserAuthType }) {
+    static async createUser(input: CreateUserModelInput) {
+        if (input.authType === UserAuthType.Credentials && !input.password) {
+            throw new NotFoundError('Password is required for Credentials auth type');
+        }
+
         this.id = this.createUniqueId();
         this.email = input.email;
         this.createdAt = new Date().toISOString();
@@ -37,51 +51,67 @@ export class UserModel extends BaseModel {
         this.deletedAt = null;
         this.deleted = false;
         this.PK = this.getPK();
-        this.SK = this.getSK();
+        this.SK = this.getEmailSK();
         this.authType = input.authType;
+        this.password = input.password;
 
         const newUser = this.getUserObject();
 
-        const response = await putDdbItem({
+        const emailUserResponse = await putDdbItem({
             item: newUser,
             logger: input.logger,
         });
 
-        if (response.$metadata.httpStatusCode !== 200) {
+        const idUserResponse = await putDdbItem({
+            item: {
+                ...newUser,
+                SK: this.getUserIdSk(),
+            },
+            logger: input.logger,
+        });
+
+        if (
+            emailUserResponse.$metadata.httpStatusCode !== 200 ||
+            idUserResponse.$metadata.httpStatusCode !== 200
+        ) {
             throw new Error('Failed to create user');
         }
 
-        return newUser;
+        return this.sanitizeEntity<User>({ entity: newUser });
     }
 
     static async getUserByEmail(input: { email: string; logger: Logger; throwError?: boolean }) {
         this.email = input.email;
-        const query = {
-            KeyConditionExpression: 'PK = :pk and begins_with(SK, :sk)',
-            ExpressionAttributeValues: {
-                ':pk': this.getPK(),
-                ':sk': this.skBeginsWithEmail(),
-                ':deleted': false,
-            },
-            FilterExpression: 'deleted = :deleted',
-        };
-        const users = await queryDdbItems<User>({
-            query,
+
+        const user = await getDdbItem<User>({
+            pk: this.getPK(),
+            sk: this.getEmailSK(),
             logger: input.logger,
         });
 
-        if (!users || users.length === 0) {
+        if (!user) {
             if (input.throwError) {
                 throw new Error('User not found');
             }
             return null;
         }
 
-        if (users.length > 1) {
-            throw new Error('Multiple users found for same email');
+        return user;
+    }
+
+    static async getUserById(input: { id: string; logger: Logger }) {
+        this.id = input.id;
+        const user = await getDdbItem<User>({
+            pk: this.getPK(),
+            sk: this.getUserIdSk(),
+            logger: input.logger,
+        });
+
+        if (!user) {
+            throw new NotFoundError('User not found');
         }
 
-        return users[0];
+        return user;
     }
 }
 
@@ -100,4 +130,13 @@ export type User = {
     updatedAt: string;
     deletedAt: string | null;
     deleted: boolean;
+    authType: UserAuthType;
+    password?: string;
+};
+
+export type CreateUserModelInput = {
+    email: string;
+    password?: string;
+    logger: Logger;
+    authType: UserAuthType;
 };

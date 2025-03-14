@@ -1,6 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import { APIGatewayAuthorizerEvent, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
 export type IRestApiMethods = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -19,14 +18,18 @@ export type RestApiMethodDef = {
 
 export type RestApiLambdaConfiguration = {
     functionName: string;
-    resource: string;
-    methods: RestApiMethodDef[];
+    resourceConfig: {
+        path: string;
+        methods: IRestApiMethods[];
+        protected?: boolean;
+        children: Array<RestApiLambdaConfiguration['resourceConfig']>;
+    };
 };
 
 export type LambdaHandler<T, R> = (props: { event: T; logger: Logger }) => Promise<R>;
 
 export type RestApiHandler = LambdaHandler<APIGatewayProxyEvent, APIGatewayProxyResult>;
-
+export type AuthorizationHandler = LambdaHandler<APIGatewayAuthorizerEvent, APIGatewayProxyResult>;
 export enum LambdaHandlerType {
     REST_API = 'REST_API',
 }

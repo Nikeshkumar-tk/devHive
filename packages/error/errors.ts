@@ -43,3 +43,9 @@ export class ConflictError extends HttpError {
         super({ statusCode: 409, message, name: 'ConflictError' });
     }
 }
+
+export class NotProvidedError extends HttpError {
+    constructor(message: string) {
+        super({ statusCode: 422, message, name: 'NotProvidedError' });
+    }
+}

@@ -1,7 +1,8 @@
 import { UserAuthType, UserModel } from '@dev-hive/aws/dynamodb/models/user';
-import { CreateUser } from './types';
 import { Logger } from '@dev-hive/aws/logger';
-import { ConflictError } from '@dev-hive/error';
+import { BadRequestError, ConflictError, NotFoundError, NotProvidedError } from '@dev-hive/error';
+import { CreateUser } from './types';
+import { encrptUserPassword, generateJwtTokens, verifyUserPassword } from './utils';
 
 /**
  * Creates a new user account in the system.
@@ -24,7 +25,17 @@ export const signUpUser = async (input: CreateUser) => {
         throw new ConflictError('User already exists');
     }
 
+    if (input.authType === UserAuthType.Credentials) {
+        if (!input.password) {
+            throw new NotProvidedError('Password not provided');
+        }
+        const ecryptedUserPassword = await encrptUserPassword(input.password);
+
+        input.password = ecryptedUserPassword;
+    }
+
     const user = await createUser(input);
+
     return user;
 };
 
@@ -42,7 +53,8 @@ export const createUser = async (input: CreateUser) => {
     const user = await UserModel.createUser({
         email: input.email,
         logger: input.logger,
-        authType: UserAuthType.Credentials,
+        authType: input.authType,
+        password: input.password,
     });
     return user;
 };
@@ -63,7 +75,107 @@ export const createUser = async (input: CreateUser) => {
  * });
  * ```
  */
-export const getUserByEmail = async (input: { email: string; logger: Logger }) => {
+export const getUserByEmail = async (input: {
+    email: string;
+    logger: Logger;
+    sanitize?: boolean;
+}) => {
     const user = await UserModel.getUserByEmail(input);
+    return input.sanitize ? UserModel.sanitizeEntity({ entity: user }) : user;
+};
+
+/**
+ * Authenticates a user by their email and password.
+ *
+ * @param input - The input object containing user credentials
+ * @param input.email - The email address of the user
+ * @param input.password - The password of the user
+ * @param input.logger - Logger instance for tracking authentication process
+ *
+ * @throws {BadRequestError} When user is not found with the provided email
+ * @throws {NotProvidedError} When password is not provided for credentials-based authentication
+ * @throws {NotFoundError} When password is not set for the user
+ * @throws {ConflictError} When provided password is invalid
+ *
+ * @returns {Promise<User>} The authenticated user object
+ */
+export const signInUser = async (input: { email: string; password: string; logger: Logger }) => {
+    input.logger.info('Sign in user', { email: input.email });
+
+    const user = await UserModel.getUserByEmail(input);
+
+    input.logger.info('User found', { user });
+
+    if (!user) {
+        throw new BadRequestError('User not found');
+    }
+
+    if (user.authType === UserAuthType.Credentials && !input.password) {
+        throw new NotProvidedError('Password not provided');
+    }
+
+    if (!user.password) {
+        throw new NotFoundError('Password not found for the user');
+    }
+
+    const isPasswordValid = await verifyUserPassword(input.password, user.password);
+
+    if (!isPasswordValid) {
+        throw new ConflictError('Invalid password');
+    }
+
+    const tokens = await generateJwtTokens({ email: user.email, id: user.id });
+
+    const userWithTokens = {
+        ...user,
+        tokens,
+    };
+
+    return UserModel.sanitizeEntity({ entity: userWithTokens });
+};
+
+/**
+ * Finds a user by email or creates a new user if one doesn't exist.
+ *
+ * @param input - The input parameters for finding or creating a user
+ * @param input.email - The email address of the user to find or create
+ * @param input.authType - The authentication type for the user
+ * @param input.logger - Logger instance for recording operations
+ * @returns A promise that resolves to the found or newly created user
+ */
+export const findOrCreateUser = async (input: {
+    email: string;
+    authType: UserAuthType;
+    logger: Logger;
+}) => {
+    const existingUser = await getUserByEmail(input);
+
+    if (existingUser) {
+        return existingUser;
+    }
+
+    const user = await createUser({
+        email: input.email,
+        logger: input.logger,
+        authType: input.authType,
+    });
+
     return user;
+};
+
+/**
+ * Retrieves a user by their ID.
+ *
+ * @param input - The input parameters
+ * @param input.id - The unique identifier of the user to retrieve
+ * @param input.logger - The logger instance for tracking operations
+ * @returns A sanitized user entity
+ * @throws {NotFoundError} When the user with the specified ID is not found
+ */
+export const getUserById = async (input: { id: string; logger: Logger; sanitize?: boolean }) => {
+    const user = await UserModel.getUserById(input);
+    if (!user) {
+        throw new NotFoundError('User not found');
+    }
+    return input.sanitize ? UserModel.sanitizeEntity({ entity: user }) : user;
 };

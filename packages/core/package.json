@@ -11,6 +11,7 @@
     "license": "ISC",
     "dependencies": {
         "@dev-hive/aws": "workspace:*",
-        "@dev-hive/error": "workspace:*"
+        "@dev-hive/error": "workspace:*",
+        "@dev-hive/layers": "workspace:*"
     }
 }

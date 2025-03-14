@@ -1,19 +1,24 @@
-import Link from 'next/link';
-import Image from 'next/image';
+import { auth } from '@/auth';
 import { Button } from '@/components/ui/button';
 import {
-    Code2,
-    Users,
-    MessageSquare,
-    Lightbulb,
-    Layers,
-    Github,
-    Twitter,
-    Linkedin,
+    ArrowRight,
     ChevronRight,
+    Code2,
+    Github,
+    Layers,
+    Lightbulb,
+    Linkedin,
+    MessageSquare,
+    Twitter,
+    Users,
 } from 'lucide-react';
 
-export default function Home() {
+import Image from 'next/image';
+import Link from 'next/link';
+
+export default async function Home() {
+    const session = await auth();
+    console.log('Session', session);
     return (
         <div className="flex min-h-[100dvh] flex-col">
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -38,7 +43,17 @@ export default function Home() {
                             FAQ
                         </Link>
                     </nav>
-                    <Button className="bg-primary hover:bg-primary/90">Sign In</Button>
+                    {session && session.user ? (
+                        <Link href={'/home'}>
+                            <Button className="bg-primary hover:bg-primary/90">
+                                Go to app <ArrowRight />
+                            </Button>
+                        </Link>
+                    ) : (
+                        <Link href={'/signin'}>
+                            <Button className="bg-primary hover:bg-primary/90">Sign In</Button>
+                        </Link>
+                    )}
                 </div>
             </header>
             <main className="flex-1">
