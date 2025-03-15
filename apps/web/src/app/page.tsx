@@ -18,7 +18,8 @@ import Link from 'next/link';
 
 export default async function Home() {
     const session = await auth();
-    console.log('Session', session);
+
+    console.log('Session', session?.user);
     return (
         <div className="flex min-h-[100dvh] flex-col">
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

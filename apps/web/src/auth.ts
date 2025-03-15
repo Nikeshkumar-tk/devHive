@@ -1,17 +1,9 @@
-import NextAuth, { DefaultSession } from 'next-auth';
-import Google from 'next-auth/providers/google';
+import { apiGatewayWebClient } from '@dev-hive/aws';
+import NextAuth from 'next-auth';
+import { encode } from 'next-auth/jwt';
 import Crerdentials from 'next-auth/providers/credentials';
-import { apiGatewayWebClient, User } from '@dev-hive/aws';
+import Google from 'next-auth/providers/google';
 import { InvaliCredentialsError } from './lib/utils/errors';
-
-declare module 'next-auth' {
-    /**
-     * Returned by `auth`, `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
-     */
-    interface Session {
-        user: User & DefaultSession['user'];
-    }
-}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -78,4 +70,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return true;
         },
     },
+    jwt: {
+        encode: async ({ secret, token, salt }) => {
+            console.log('secret:', secret);
+            console.log('salt:', salt);
+            return await encode({
+                salt,
+                secret,
+                token,
+            });
+        },
+    },
+    secret: process.env.AUTH_SECRET,
 });

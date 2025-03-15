@@ -1,14 +1,12 @@
-import type { DefaultUser } from 'next-auth';
-import { type User as UserType } from '@dev-hive/aws';
-import { DefaultJWT } from 'next-auth/jwt';
+import { User } from '@dev-hive/aws';
+import { DefaultSession } from 'next-auth';
+
 declare module 'next-auth' {
+    /**
+     * Returned by `auth`, `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
+     */
     interface Session {
-        user: User;
+        user: User &
+            DefaultSession['user'] & { tokens: { accessToken: string; refreshToken: string } };
     }
-
-    type User = DefaultUser & UserType;
-}
-
-declare module 'next-auth/jwt' {
-    type JWT = UserType & DefaultJWT;
 }
