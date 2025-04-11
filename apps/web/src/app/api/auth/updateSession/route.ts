@@ -1,31 +1,10 @@
-import { encode, getToken } from 'next-auth/jwt';
-import { cookies } from 'next/headers';
+import { updateUserSession } from '@/lib/utils/auth';
 
 export const POST = async (req: Request) => {
-    console.log('Request', req);
+    const data = await req.json();
 
-    const body = await req.json();
-    console.log('body:', body.data);
-
-    const token = await getToken({
-        req,
-        secret: process.env.AUTH_SECRET!,
-        salt: 'authjs.session-token',
-    });
-
-    console.log('decoded token:', token);
-
-    const newToken = await encode({
-        token: {
-            ...token,
-            ...body.data,
-        },
-        secret: process.env.AUTH_SECRET!,
-        salt: 'authjs.session-token',
-    });
-
-    (await cookies()).set('authjs.session-token', newToken, {
-        httpOnly: true,
+    await updateUserSession({
+        ...data,
     });
 
     return new Response('Session Updated');

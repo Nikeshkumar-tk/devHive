@@ -13,7 +13,7 @@ const API_GATEWAY_URL = 'https://jsml7n028k.execute-api.us-east-1.amazonaws.com/
  */
 const get = async (url: string) => {
     const response = await fetch(`${API_GATEWAY_URL}${url}`);
-    return response.json();
+    return response;
 };
 
 /**

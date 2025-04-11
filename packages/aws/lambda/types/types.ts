@@ -1,13 +1,14 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { APIGatewayAuthorizerEvent, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 
-export type IRestApiMethods = 'GET' | 'POST' | 'PUT' | 'DELETE';
+export type IRestApiMethods = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
 export enum ApiMethods {
     GET = 'GET',
     POST = 'POST',
     PUT = 'PUT',
     DELETE = 'DELETE',
+    PATCH = 'PATCH',
 }
 
 export type LambdaEvents = APIGatewayProxyEvent;

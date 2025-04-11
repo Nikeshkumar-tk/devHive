@@ -31,6 +31,7 @@ export const handleGetRequest: RestApiHandler = async ({ event, logger }) => {
                 }),
                 status: 200,
             });
+
         case GetRequestActions.GET_USER_ME:
             return lambdaResponse({
                 data: await getUserById({

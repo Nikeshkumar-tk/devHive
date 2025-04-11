@@ -1,4 +1,4 @@
-import { UserAuthType, UserModel } from '@dev-hive/aws/dynamodb/models/user';
+import { User, UserAuthType, UserModel } from '@dev-hive/aws/dynamodb/models/user';
 import { Logger } from '@dev-hive/aws/logger';
 import { BadRequestError, ConflictError, NotFoundError, NotProvidedError } from '@dev-hive/error';
 import { CreateUser } from './types';
@@ -178,4 +178,29 @@ export const getUserById = async (input: { id: string; logger: Logger; sanitize?
         throw new NotFoundError('User not found');
     }
     return input.sanitize ? UserModel.sanitizeEntity({ entity: user }) : user;
+};
+
+/**
+ * Updates a user by their unique identifier.
+ *
+ * @param input - The input object containing the following properties:
+ * @param input.id - The unique identifier of the user to be updated.
+ * @param input.data - A partial object containing the fields to update in the user entity.
+ * @param input.logger - A logger instance for logging purposes.
+ *
+ * @returns A sanitized version of the updated user entity.
+ *
+ * @throws Will throw an error if the update operation fails.
+ */
+export const updateUserById = async (input: {
+    id: string;
+    data: Partial<User>;
+    logger: Logger;
+}) => {
+    const updatedUser = await UserModel.updateUserById({
+        data: input.data,
+        id: input.id,
+        logger: input.logger,
+    });
+    return UserModel.sanitizeEntity({ entity: updatedUser });
 };

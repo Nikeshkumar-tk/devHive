@@ -13,11 +13,14 @@
         "@dev-hive/aws": "workspace:*",
         "@dev-hive/core": "workspace:*",
         "@dev-hive/error": "workspace:*",
+        "@dev-hive/trpc": "workspace:*",
+        "@trpc/server": "^11.0.2",
         "aws-cdk-lib": "2.179.0",
         "aws-lambda": "^1.0.7",
         "bcrypt": "^5.1.1",
         "constructs": "^10.0.0",
-        "module-alias": "^2.2.3"
+        "module-alias": "^2.2.3",
+        "zod": "^3.24.2"
     },
     "devDependencies": {
         "@types/bcrypt": "^5.0.2",

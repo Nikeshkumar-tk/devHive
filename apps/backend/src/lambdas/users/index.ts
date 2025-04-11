@@ -14,11 +14,11 @@ export const config: RestApiLambdaConfiguration = {
         children: [
             {
                 methods: ['GET', 'POST'],
-                path: 'email',
+                path: 'by-email',
                 children: [{ methods: ['GET'], path: '{email}', children: [] }],
             },
             { methods: ['GET'], path: '{id}', children: [] },
-            { methods: ['GET'], path: 'me', children: [], protected: true },
+            { methods: ['GET', 'PATCH'], path: 'me', children: [], protected: true },
         ],
     },
 };

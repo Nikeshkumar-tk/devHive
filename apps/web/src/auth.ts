@@ -4,6 +4,7 @@ import { encode } from 'next-auth/jwt';
 import Crerdentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import { InvaliCredentialsError } from './lib/utils/errors';
+import { api } from './lib/api/serverClient';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
@@ -33,11 +34,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return baseUrl;
         },
         jwt: async ({ token, user, account }) => {
+            console.log('token:', token);
             if (account?.provider === 'google') {
-                const dbUser = await apiGatewayWebClient.get(
-                    '/users/email/' + token.email || (user.email as string),
+                const dbUser = await api.get(
+                    '/users/by-email/' + token.email || (user.email as string),
                 );
-
+                console.log('dbUser:', dbUser.status);
                 return {
                     ...token,
                     ...dbUser,

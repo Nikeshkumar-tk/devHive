@@ -24,8 +24,10 @@ api.interceptors.request.use(async (config) => {
      * }
      */
     const session = await auth();
-    config.headers.Authorization = `Bearer ${session?.user?.tokens.accessToken}`;
-    config.headers['x-refresh-token'] = session?.user?.tokens.refreshToken;
+    if (session) {
+        config.headers.Authorization = `Bearer ${session?.user?.tokens.accessToken}`;
+        config.headers['x-refresh-token'] = session?.user?.tokens.refreshToken;
+    }
     return config;
 });
 
@@ -53,7 +55,7 @@ api.interceptors.response.use(
                         refreshToken: originalRequest.headers['x-refresh-token'],
                     },
                 });
-                return api(originalRequest);
+                return await api(originalRequest);
             }
         }
         return Promise.reject(error);

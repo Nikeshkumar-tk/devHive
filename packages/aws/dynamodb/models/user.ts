@@ -1,42 +1,24 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { getDdbItem, putDdbItem, queryDdbItems } from '../client/client';
+import { getDdbItem, putDdbItem, queryDdbItems, updateItem } from '../client/client';
 import { BaseModel } from './baseModel';
 import { NotFoundError } from '@dev-hive/error';
 
 export class UserModel extends BaseModel {
-    public static email: string;
-    public static authType: UserAuthType;
-    public static password?: string;
     public static override sensitiveFields: string[] = ['password', 'PK', 'SK'];
     static getPK() {
         return `DH#USERS`;
     }
 
-    static getEmailSK() {
-        return `DH#USER_EMAIL#${this.email}`;
+    static getEmailSK({ email }: { email: string }) {
+        return `DH#USER_EMAIL#${email}`;
     }
 
-    static getUserIdSk() {
-        return `DH#USER_ID#${this.id}`;
+    static getUserIdSk({ id }: { id: string }) {
+        return `DH#USER_ID#${id}`;
     }
 
-    static skBeginsWithEmail() {
-        return `DH#USER_EMAIL#${this.email}`;
-    }
-
-    static getUserObject(): UserModel {
-        return {
-            id: this.id,
-            email: this.email,
-            PK: this.PK,
-            SK: this.SK,
-            deleted: this.deleted,
-            createdAt: this.createdAt,
-            updatedAt: this.updatedAt,
-            deletedAt: this.deletedAt,
-            authType: this.authType,
-            password: this.password,
-        };
+    static skBeginsWithEmail({ email }: { email: string }) {
+        return `DH#USER_EMAIL#${email}`;
     }
 
     static async createUser(input: CreateUserModelInput) {
@@ -44,18 +26,17 @@ export class UserModel extends BaseModel {
             throw new NotFoundError('Password is required for Credentials auth type');
         }
 
-        this.id = this.createUniqueId();
-        this.email = input.email;
-        this.createdAt = new Date().toISOString();
-        this.updatedAt = new Date().toISOString();
-        this.deletedAt = null;
-        this.deleted = false;
-        this.PK = this.getPK();
-        this.SK = this.getEmailSK();
-        this.authType = input.authType;
-        this.password = input.password;
-
-        const newUser = this.getUserObject();
+        const newUser = {
+            PK: this.getPK(),
+            SK: this.getEmailSK({ email: input.email }),
+            email: input.email,
+            authType: input.authType,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            deleted: false,
+            password: input.password,
+        };
 
         const emailUserResponse = await putDdbItem({
             item: newUser,
@@ -65,7 +46,7 @@ export class UserModel extends BaseModel {
         const idUserResponse = await putDdbItem({
             item: {
                 ...newUser,
-                SK: this.getUserIdSk(),
+                SK: this.getUserIdSk({ id: this.createUniqueId() }),
             },
             logger: input.logger,
         });
@@ -81,11 +62,9 @@ export class UserModel extends BaseModel {
     }
 
     static async getUserByEmail(input: { email: string; logger: Logger; throwError?: boolean }) {
-        this.email = input.email;
-
         const user = await getDdbItem<User>({
             pk: this.getPK(),
-            sk: this.getEmailSK(),
+            sk: this.getEmailSK({ email: input.email }),
             logger: input.logger,
         });
 
@@ -100,10 +79,9 @@ export class UserModel extends BaseModel {
     }
 
     static async getUserById(input: { id: string; logger: Logger }) {
-        this.id = input.id;
         const user = await getDdbItem<User>({
             pk: this.getPK(),
-            sk: this.getUserIdSk(),
+            sk: this.getUserIdSk({ id: input.id }),
             logger: input.logger,
         });
 
@@ -112,6 +90,20 @@ export class UserModel extends BaseModel {
         }
 
         return user;
+    }
+
+    static async updateUserById(input: { id: string; data: Partial<User>; logger: Logger }) {
+        const response = await updateItem({
+            pk: this.getPK(),
+            sk: this.getUserIdSk({ id: input.id }),
+            logger: input.logger,
+            attributesToUpdate: input.data,
+        });
+
+        if (response.$metadata.httpStatusCode !== 200) {
+            throw new Error('Failed to update user');
+        }
+        return response;
     }
 }
 
@@ -132,6 +124,11 @@ export type User = {
     deleted: boolean;
     authType: UserAuthType;
     password?: string;
+    name: string;
+    username: string;
+    bio: string;
+    skills: string[];
+    avatar: string;
 };
 
 export type CreateUserModelInput = {
