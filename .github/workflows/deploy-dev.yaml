@@ -33,5 +33,5 @@ jobs:
 
             - name: Deploy using SST
               run: |
-                  cd apps/web
+                  cd apps/client
                   npx sst deploy
